@@ -14,4 +14,4 @@ and download the source code file rename it index.html and paste at  Your_api_Ke
         };
 
 
-if any confusion mail me : notesharbourgju@mail.com
+if any confusion mail me : notesharbourgju@gmail.com
