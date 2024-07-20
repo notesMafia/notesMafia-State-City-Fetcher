@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Country State City Dropdown</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            max-width: 500px;
+            width: 100%;
+        }
+        h1, h2, h3 {
+            color: #333;
+        }
+        label {
+            font-weight: bold;
+            margin-top: 10px;
+            display: block;
+        }
+        select, input[type="text"], button {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        button {
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .details {
+            margin-top: 20px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Search Details by Pincode</h2>
+        <label for="pincodeSearch">Pincode:</label>
+        <input type="text" id="pincodeSearch" placeholder="Enter pincode">
+        <button onclick="searchDetailsByPincode()">Search</button>
+
+       
+        <label for="state">State:</label>
+        <select id="state" onchange="fetchDistricts()">
+            <option value="">Select a state</option>
+        </select>
+
+        <label for="district">District:</label>
+        <select id="district">
+            <option value="">Select a district</option>
+        </select>
+
+        <div class="details">
+            <h3>Details:</h3>
+            <p id="details"></p>
+        </div>
+
+       
+        <label for="postOffice">City/Village:</label>
+        <select id="postOffice">
+            <option value="">Select city/place</option>
+        </select>
+
+        <p id="pincode" style="display: none;"></p>
+    </div>
+
+    <script>
+        var headers = new Headers();
+        headers.append("X-CSCAPI-KEY", "Your_api_Key");
+
+        var requestOptions = {
+            method: 'GET',
+            headers: headers,
+            redirect: 'follow'
+        };
+
+        // Fetch states and populate the state dropdown
+        fetch("https://api.countrystatecity.in/v1/countries/IN/states", requestOptions)
+            .then(response => response.json())
+            .then(result => {
+                var stateDropdown = document.getElementById('state');
+                result.forEach(state => {
+                    var option = document.createElement('option');
+                    option.value = state.iso2;
+                    option.text = state.name;
+                    stateDropdown.appendChild(option);
+                });
+            })
+            .catch(error => console.log('error', error));
+
+        // Fetch districts based on selected state and populate the district dropdown
+        function fetchDistricts() {
+            var stateCode = document.getElementById('state').value;
+            var districtDropdown = document.getElementById('district');
+            districtDropdown.innerHTML = '<option value="">Select a district</option>'; // Reset the district dropdown
+
+            if (stateCode) {
+                return fetch(`https://api.countrystatecity.in/v1/countries/IN/states/${stateCode}/cities`, requestOptions)
+                    .then(response => response.json())
+                    .then(result => {
+                        result.forEach(district => {
+                            var option = document.createElement('option');
+                            option.value = district.name;
+                            option.text = district.name;
+                            districtDropdown.appendChild(option);
+                        });
+                    })
+                    .catch(error => console.log('error', error));
+            } else {
+                return Promise.resolve();
+            }
+        }
+
+        // Search details by pincode using Postalpincode API and select state, district
+        function searchDetailsByPincode() {
+            var pincode = document.getElementById('pincodeSearch').value;
+            if (pincode) {
+                fetch(`https://api.postalpincode.in/pincode/${pincode}`)
+                    .then(response => response.json())
+                    .then(result => {
+                        if (result[0].Status === "Success") {
+                            var postOffices = result[0].PostOffice;
+                            var headPostOffice = postOffices.find(po => po.BranchType === "Head Post Office");
+                            var subPostOffice = postOffices.find(po => po.BranchType === "Sub Post Office");
+
+                            var detail;
+                            if (headPostOffice) {
+                                detail = headPostOffice;
+                            } else if (subPostOffice) {
+                                detail = subPostOffice;
+                            }
+
+                            if (detail) {
+                                document.getElementById('details').innerText = `Name: ${detail.Name}, District: ${detail.District}, State: ${detail.State}`;
+                                document.querySelector('.details').style.display = 'block';
+                                selectStateDistrict(detail.State, detail.District);
+                            } else {
+                                document.getElementById('details').innerText = "No Head Post Office or Sub Post Office found";
+                                document.querySelector('.details').style.display = 'block';
+                            }
+
+                            var postOfficeDropdown = document.getElementById('postOffice');
+                            postOfficeDropdown.innerHTML = '<option value="">Select a post office</option>'; // Reset the post office dropdown
+                            postOffices.forEach(postOffice => {
+                                var option = document.createElement('option');
+                                option.value = postOffice.Name;
+                                option.text = postOffice.Name;
+                                postOfficeDropdown.appendChild(option);
+                            });
+                        } else {
+                            document.getElementById('details').innerText = "Pincode not found";
+                            document.querySelector('.details').style.display = 'block';
+                        }
+                    })
+                    .catch(error => console.log('error', error));
+            }
+        }
+
+        // Select state and district based on the pincode details
+        function selectStateDistrict(stateName, districtName) {
+            var stateDropdown = document.getElementById('state');
+            var districtDropdown = document.getElementById('district');
+            
+            // Select state
+            for (var i = 0; i < stateDropdown.options.length; i++) {
+                if (stateDropdown.options[i].text === stateName) {
+                    stateDropdown.selectedIndex = i;
+                    fetchDistricts().then(() => {
+                        // Select district after the districts are populated
+                        for (var j = 0; j < districtDropdown.options.length; j++) {
+                            if (districtDropdown.options[j].text === districtName) {
+                                districtDropdown.selectedIndex = j;
+                                break;
+                            }
+                        }
+                    });
+                    break;
+                }
+            }
+        }
+    </script>
+</body>
+</html>
